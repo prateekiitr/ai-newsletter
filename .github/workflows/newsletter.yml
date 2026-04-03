@@ -30,8 +30,9 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+
       - name: Install dependencies
-        run: pip install requests feedparser groq resend python-dotenv
+        run: pip install -r requirements.txt
 
       - name: Run newsletter agent
         env:
