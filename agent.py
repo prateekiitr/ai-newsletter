@@ -396,138 +396,283 @@ def fetch_subscribers() -> list[str]:
 # ══════════════════════════════════════════════════════════════════
 
 def build_email_html(digest: dict, date_str: str, email: str) -> str:
-    """Build the full HTML email from the digest."""
+    """Build premium HTML email from the digest."""
 
     unsubscribe_url = f"https://prateeksinghphd.in/api/unsubscribe?email={requests.utils.quote(email)}"
 
-    papers_html = ''.join([
-        f"""<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">
-              <span style="color:#00d9b4;flex-shrink:0;font-size:12px;margin-top:2px;">▸</span>
-              <div>
-                <a href="{p['url']}" style="color:#e0e0f0;text-decoration:none;font-weight:500;font-size:14px;">{p['title']}</a>
-                <p style="color:#8a8aaa;font-size:13px;margin:3px 0 0;">{p['summary']}</p>
-              </div>
-            </div>"""
-        for p in digest.get('papers', [])
-    ])
+    # Paper cards — numbered, with full link button
+    paper_colors = ['#00d9b4', '#7c6bff', '#ff6b9d']
+    papers_html  = ''
+    for i, p in enumerate(digest.get('papers', [])[:3]):
+        color = paper_colors[i % len(paper_colors)]
+        papers_html += f"""
+        <div style="margin-bottom:20px;background:#0d0d1a;border:1px solid #1e1e35;
+                    border-left:3px solid {color};border-radius:6px;padding:20px 24px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+            <span style="font-family:Georgia,serif;font-size:28px;font-weight:900;
+                         color:{color};opacity:.35;line-height:1;">0{i+1}</span>
+            <a href="{p.get('url','#')}"
+               style="font-size:17px;font-weight:700;color:#f0f0f8;
+                      text-decoration:none;line-height:1.35;">{p.get('title','')}</a>
+          </div>
+          <p style="color:#9090b8;font-size:15px;line-height:1.7;margin:0 0 14px;
+                    padding-left:44px;">{p.get('summary','')}</p>
+          <div style="padding-left:44px;">
+            <a href="{p.get('url','#')}"
+               style="display:inline-block;background:{color}18;color:{color};
+                      border:1px solid {color}40;font-family:monospace;font-size:11px;
+                      letter-spacing:2px;text-transform:uppercase;text-decoration:none;
+                      padding:6px 14px;border-radius:3px;">
+              Read Paper →
+            </a>
+          </div>
+        </div>"""
 
     top     = digest.get('top_story', {})
     health  = digest.get('healthcare_spotlight', {})
     tools   = digest.get('tools_repos', {})
     closing = digest.get('closing_thought', '')
+    subject = digest.get('subject', f'AI Daily — {date_str}')
+
+    # Day of week for the header
+    try:
+        from datetime import datetime as dt
+        dow = dt.now().strftime('%A').upper()
+    except Exception:
+        dow = 'TODAY'
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{digest.get('subject', 'Daily AI Newsletter')}</title>
+  <meta name="color-scheme" content="dark">
+  <title>{subject}</title>
 </head>
-<body style="margin:0;padding:0;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<body style="margin:0;padding:0;background:#08080f;
+             font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 
-  <div style="max-width:600px;margin:0 auto;padding:20px 0 40px;">
+<div style="max-width:620px;margin:0 auto;background:#08080f;">
 
-    <!-- Header -->
-    <div style="padding:32px 40px 24px;border-bottom:1px solid #2a2a3f;">
-      <p style="font-family:monospace;font-size:10px;letter-spacing:4px;color:#00d9b4;
-                text-transform:uppercase;margin:0 0 8px;">Daily AI Newsletter</p>
-      <p style="color:#6a6a8a;font-size:12px;margin:0;font-family:monospace;">
-        {date_str} &nbsp;·&nbsp; 9:00 AM IST
-      </p>
-    </div>
-
-    <!-- Top Story -->
-    <div style="padding:28px 40px;border-bottom:1px solid #1a1a2f;">
-      <p style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#00d9b4;
-                text-transform:uppercase;margin:0 0 14px;">
-        ── Top Story
-      </p>
-      <h2 style="font-size:20px;font-weight:800;color:#f0f0f8;margin:0 0 10px;line-height:1.3;">
-        <a href="{top.get('url','#')}" style="color:#f0f0f8;text-decoration:none;">{top.get('headline','')}</a>
-      </h2>
-      <p style="color:#b0b0c8;font-size:14px;line-height:1.75;margin:0 0 14px;">
-        {top.get('body','')}
-      </p>
-      <a href="{top.get('url','#')}" style="font-family:monospace;font-size:11px;
-               letter-spacing:2px;color:#00d9b4;text-transform:uppercase;text-decoration:none;">
-        Read more →
-      </a>
-    </div>
-
-    <!-- Healthcare AI Spotlight -->
-    <div style="padding:28px 40px;border-bottom:1px solid #1a1a2f;background:#0d0d18;">
-      <p style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#ff6b9d;
-                text-transform:uppercase;margin:0 0 14px;">
-        ── Healthcare AI Spotlight
-      </p>
-      <h2 style="font-size:18px;font-weight:700;color:#f0f0f8;margin:0 0 10px;line-height:1.3;">
-        <a href="{health.get('url','#')}" style="color:#f0f0f8;text-decoration:none;">{health.get('headline','')}</a>
-      </h2>
-      <p style="color:#b0b0c8;font-size:14px;line-height:1.75;margin:0 0 14px;">
-        {health.get('body','')}
-      </p>
-      <a href="{health.get('url','#')}" style="font-family:monospace;font-size:11px;
-               letter-spacing:2px;color:#ff6b9d;text-transform:uppercase;text-decoration:none;">
-        Read more →
-      </a>
-    </div>
-
-    <!-- Papers -->
-    <div style="padding:28px 40px;border-bottom:1px solid #1a1a2f;">
-      <p style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#7c6bff;
-                text-transform:uppercase;margin:0 0 18px;">
-        ── 3 Papers Worth Reading
-      </p>
-      {papers_html}
-    </div>
-
-    <!-- Tools & Repos -->
-    <div style="padding:28px 40px;border-bottom:1px solid #1a1a2f;background:#0d0d18;">
-      <p style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#ffb347;
-                text-transform:uppercase;margin:0 0 14px;">
-        ── Tool / Repo of the Day
-      </p>
-      <h3 style="font-size:16px;font-weight:700;color:#f0f0f8;margin:0 0 8px;">
-        <a href="{tools.get('url','#')}" style="color:#f0f0f8;text-decoration:none;">{tools.get('headline','')}</a>
-      </h3>
-      <p style="color:#b0b0c8;font-size:14px;line-height:1.75;margin:0 0 12px;">
-        {tools.get('body','')}
-      </p>
-      <a href="{tools.get('url','#')}" style="font-family:monospace;font-size:11px;
-               letter-spacing:2px;color:#ffb347;text-transform:uppercase;text-decoration:none;">
-        Check it out →
-      </a>
-    </div>
-
-    <!-- Closing thought -->
-    <div style="padding:24px 40px;border-bottom:1px solid #1a1a2f;">
-      <p style="color:#6a6a8a;font-size:13px;font-style:italic;line-height:1.7;margin:0;">
-        💭 {closing}
-      </p>
-    </div>
-
-    <!-- Footer -->
-    <div style="padding:28px 40px;">
-      <p style="color:#4a4a6a;font-size:12px;line-height:2;margin:0;">
-        <strong style="color:#8a8aaa;">Dr. Prateek Singh</strong><br>
-        Senior Manager, GenAI &amp; Digital Health AI · Samsung Research Institute, Noida<br>
-        IIT Roorkee PhD · Healthcare AI · On-Device LLMs<br>
-        <a href="https://prateeksinghphd.in" style="color:#00d9b4;text-decoration:none;">prateeksinghphd.in</a>
-        &nbsp;·&nbsp;
-        <a href="https://www.linkedin.com/in/prateek29s/" style="color:#4a4a6a;text-decoration:none;">LinkedIn</a>
-        &nbsp;·&nbsp;
-        <a href="https://cal.com/prateek-singh-la8jpj" style="color:#4a4a6a;text-decoration:none;">Book a call</a>
-      </p>
-      <p style="margin:16px 0 0;">
-        <a href="{unsubscribe_url}"
-           style="font-family:monospace;font-size:10px;letter-spacing:2px;
-                  color:#3a3a5a;text-decoration:none;text-transform:uppercase;">
-          Unsubscribe
-        </a>
-      </p>
-    </div>
-
+  <!-- ══ TOP BAR ══ -->
+  <div style="background:#00d9b4;padding:10px 40px;text-align:center;">
+    <span style="font-family:monospace;font-size:11px;font-weight:700;
+                 letter-spacing:3px;color:#08080f;text-transform:uppercase;">
+      🧠 AI DAILY BRIEFING &nbsp;·&nbsp; {dow} &nbsp;·&nbsp; 9 AM IST
+    </span>
   </div>
+
+  <!-- ══ HEADER ══ -->
+  <div style="padding:40px 44px 32px;border-bottom:1px solid #1e1e35;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td>
+          <p style="font-family:Georgia,serif;font-size:13px;font-style:italic;
+                    color:#00d9b4;margin:0 0 6px;">Dr. Prateek Singh</p>
+          <h1 style="font-family:Georgia,serif;font-size:36px;font-weight:900;
+                     color:#f0f0f8;margin:0;line-height:1.1;letter-spacing:-0.5px;">
+            Your AI Briefing
+          </h1>
+          <p style="font-size:15px;color:#5a5a7a;margin:8px 0 0;font-family:monospace;">
+            {date_str}
+          </p>
+        </td>
+        <td style="text-align:right;vertical-align:top;padding-top:4px;">
+          <div style="background:#0d0d1a;border:1px solid #1e1e35;border-radius:6px;
+                      padding:10px 16px;display:inline-block;">
+            <p style="font-family:monospace;font-size:10px;letter-spacing:2px;
+                      color:#5a5a7a;text-transform:uppercase;margin:0 0 3px;">Today</p>
+            <p style="font-family:Georgia,serif;font-size:22px;font-weight:900;
+                      color:#00d9b4;margin:0;line-height:1;">5 min</p>
+            <p style="font-family:monospace;font-size:9px;color:#3a3a5a;
+                      margin:2px 0 0;text-transform:uppercase;">read</p>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ══ TOP STORY ══ -->
+  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;">
+    <div style="display:inline-block;background:#00d9b414;border:1px solid #00d9b430;
+                border-radius:3px;padding:4px 12px;margin-bottom:18px;">
+      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;
+                   color:#00d9b4;text-transform:uppercase;font-weight:700;">
+        ① Top Story
+      </span>
+    </div>
+    <h2 style="font-family:Georgia,serif;font-size:26px;font-weight:900;
+               color:#f0f0f8;margin:0 0 14px;line-height:1.25;">
+      <a href="{top.get('url','#')}"
+         style="color:#f0f0f8;text-decoration:none;">{top.get('headline','')}</a>
+    </h2>
+    <p style="font-size:17px;color:#b0b0c8;line-height:1.8;margin:0 0 22px;">
+      {top.get('body','')}
+    </p>
+    <a href="{top.get('url','#')}"
+       style="display:inline-block;background:#00d9b4;color:#08080f;font-family:monospace;
+              font-size:12px;letter-spacing:2px;font-weight:700;text-transform:uppercase;
+              text-decoration:none;padding:12px 24px;border-radius:3px;">
+      Read Full Story →
+    </a>
+  </div>
+
+  <!-- ══ HEALTHCARE SPOTLIGHT ══ -->
+  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;background:#0c0c18;">
+    <div style="display:inline-block;background:#ff6b9d14;border:1px solid #ff6b9d30;
+                border-radius:3px;padding:4px 12px;margin-bottom:18px;">
+      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;
+                   color:#ff6b9d;text-transform:uppercase;font-weight:700;">
+        ❤️ Healthcare AI Spotlight
+      </span>
+    </div>
+    <h2 style="font-family:Georgia,serif;font-size:24px;font-weight:900;
+               color:#f0f0f8;margin:0 0 14px;line-height:1.3;">
+      <a href="{health.get('url','#')}"
+         style="color:#f0f0f8;text-decoration:none;">{health.get('headline','')}</a>
+    </h2>
+    <p style="font-size:17px;color:#b0b0c8;line-height:1.8;margin:0 0 22px;">
+      {health.get('body','')}
+    </p>
+    <a href="{health.get('url','#')}"
+       style="display:inline-block;background:#ff6b9d18;color:#ff6b9d;
+              border:1px solid #ff6b9d40;font-family:monospace;font-size:12px;
+              letter-spacing:2px;font-weight:700;text-transform:uppercase;
+              text-decoration:none;padding:12px 24px;border-radius:3px;">
+      Read More →
+    </a>
+  </div>
+
+  <!-- ══ PAPERS ══ -->
+  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;">
+    <div style="display:inline-block;background:#7c6bff14;border:1px solid #7c6bff30;
+                border-radius:3px;padding:4px 12px;margin-bottom:22px;">
+      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;
+                   color:#7c6bff;text-transform:uppercase;font-weight:700;">
+        📄 3 Papers Worth Reading
+      </span>
+    </div>
+    {papers_html}
+  </div>
+
+  <!-- ══ TOOL OF THE DAY ══ -->
+  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;background:#0c0c18;">
+    <div style="display:inline-block;background:#ffb34714;border:1px solid #ffb34730;
+                border-radius:3px;padding:4px 12px;margin-bottom:18px;">
+      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;
+                   color:#ffb347;text-transform:uppercase;font-weight:700;">
+        🚀 Tool / Repo of the Day
+      </span>
+    </div>
+    <h2 style="font-family:Georgia,serif;font-size:22px;font-weight:900;
+               color:#f0f0f8;margin:0 0 12px;line-height:1.3;">
+      <a href="{tools.get('url','#')}"
+         style="color:#f0f0f8;text-decoration:none;">{tools.get('headline','')}</a>
+    </h2>
+    <p style="font-size:17px;color:#b0b0c8;line-height:1.8;margin:0 0 22px;">
+      {tools.get('body','')}
+    </p>
+    <a href="{tools.get('url','#')}"
+       style="display:inline-block;background:#ffb34718;color:#ffb347;
+              border:1px solid #ffb34740;font-family:monospace;font-size:12px;
+              letter-spacing:2px;font-weight:700;text-transform:uppercase;
+              text-decoration:none;padding:12px 24px;border-radius:3px;">
+      Check it out →
+    </a>
+  </div>
+
+  <!-- ══ CLOSING THOUGHT ══ -->
+  <div style="padding:30px 44px;border-bottom:1px solid #1e1e35;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="width:4px;background:linear-gradient(180deg,#00d9b4,#7c6bff);
+                   border-radius:2px;">&nbsp;</td>
+        <td style="padding-left:20px;">
+          <p style="font-family:Georgia,serif;font-size:17px;font-style:italic;
+                    color:#8a8aaa;line-height:1.75;margin:0;">
+            "{closing}"
+          </p>
+          <p style="font-size:13px;color:#4a4a6a;margin:10px 0 0;font-family:monospace;">
+            — Dr. Prateek Singh
+          </p>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ══ CTA BANNER ══ -->
+  <div style="padding:32px 44px;background:#0d0d1a;border-bottom:1px solid #1e1e35;">
+    <table width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="vertical-align:middle;">
+          <p style="font-family:Georgia,serif;font-size:18px;font-weight:700;
+                    color:#f0f0f8;margin:0 0 4px;">Working on Healthcare AI?</p>
+          <p style="font-size:14px;color:#6a6a8a;margin:0;">
+            Let's discuss your project — free 30-min call.
+          </p>
+        </td>
+        <td style="text-align:right;vertical-align:middle;">
+          <a href="https://cal.com/prateek-singh-la8jpj"
+             style="display:inline-block;background:#00d9b4;color:#08080f;
+                    font-family:monospace;font-size:11px;letter-spacing:2px;
+                    font-weight:700;text-transform:uppercase;text-decoration:none;
+                    padding:12px 20px;border-radius:3px;white-space:nowrap;">
+            Book a Call →
+          </a>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ══ FOOTER ══ -->
+  <div style="padding:32px 44px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      <tr>
+        <td>
+          <p style="font-family:monospace;font-size:10px;letter-spacing:2px;
+                    color:#00d9b4;text-transform:uppercase;margin:0 0 8px;">
+            Dr. Prateek Singh
+          </p>
+          <p style="font-size:13px;color:#4a4a6a;line-height:1.8;margin:0;">
+            Senior Manager, GenAI &amp; Digital Health AI<br>
+            Samsung Research Institute, Noida · IIT Roorkee PhD
+          </p>
+        </td>
+        <td style="text-align:right;vertical-align:middle;">
+          <a href="https://prateeksinghphd.in"
+             style="display:inline-block;background:#0d0d1a;color:#00d9b4;
+                    border:1px solid #1e1e35;font-family:monospace;font-size:10px;
+                    letter-spacing:2px;text-transform:uppercase;text-decoration:none;
+                    padding:8px 14px;border-radius:3px;">
+            My Blog →
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Social links -->
+    <div style="border-top:1px solid #1e1e35;padding-top:20px;
+                display:flex;gap:16px;flex-wrap:wrap;">
+      <a href="https://prateeksinghphd.in"
+         style="font-size:13px;color:#4a4a6a;text-decoration:none;">🌐 Website</a>
+      <a href="https://www.linkedin.com/in/prateek29s/"
+         style="font-size:13px;color:#4a4a6a;text-decoration:none;">💼 LinkedIn</a>
+      <a href="https://scholar.google.com/citations?user=nYZhJaMAAAAJ&hl=en"
+         style="font-size:13px;color:#4a4a6a;text-decoration:none;">📚 Scholar</a>
+      <a href="https://cal.com/prateek-singh-la8jpj"
+         style="font-size:13px;color:#4a4a6a;text-decoration:none;">📅 Book a Call</a>
+    </div>
+
+    <p style="margin:24px 0 0;">
+      <a href="{unsubscribe_url}"
+         style="font-family:monospace;font-size:10px;letter-spacing:2px;
+                color:#2a2a4a;text-decoration:none;text-transform:uppercase;">
+        Unsubscribe · One click, no questions asked
+      </a>
+    </p>
+  </div>
+
+</div>
 </body>
 </html>"""
 
