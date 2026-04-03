@@ -1,0 +1,56 @@
+name: Daily AI Newsletter
+
+on:
+  # 9:00 AM IST = 03:30 UTC
+  schedule:
+    - cron: '30 3 * * *'
+
+  # Manual trigger (for testing)
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Send only to TEST_EMAIL instead of all subscribers'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+jobs:
+  send-newsletter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install requests feedparser groq resend python-dotenv
+
+      - name: Run newsletter agent
+        env:
+          GROQ_API_KEY:    ${{ secrets.GROQ_API_KEY }}
+          RESEND_API_KEY:  ${{ secrets.RESEND_API_KEY }}
+          ADMIN_TOKEN:     ${{ secrets.ADMIN_TOKEN }}
+          SUBSCRIBERS_URL: ${{ secrets.SUBSCRIBERS_URL }}
+          FROM_EMAIL:      ${{ secrets.FROM_EMAIL }}
+          FROM_NAME:       ${{ secrets.FROM_NAME }}
+          TEST_EMAIL:      ${{ secrets.TEST_EMAIL }}
+          # For scheduled runs: TEST_MODE=false
+          # For manual runs: use workflow_dispatch input
+          TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
+        run: python agent.py
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newsletter-failure-log
+          path: '*.log'
+          retention-days: 7
