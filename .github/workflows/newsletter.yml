@@ -30,9 +30,14 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Files in directory:"
+          ls -la
+          echo "Installing dependencies..."
+          pip install -r ./requirements.txt
 
       - name: Run newsletter agent
         env:
@@ -43,10 +48,10 @@ jobs:
           FROM_EMAIL:      ${{ secrets.FROM_EMAIL }}
           FROM_NAME:       ${{ secrets.FROM_NAME }}
           TEST_EMAIL:      ${{ secrets.TEST_EMAIL }}
-          # For scheduled runs: TEST_MODE=false
-          # For manual runs: use workflow_dispatch input
-          TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
-        run: python agent.py
+          TEST_MODE:       ${{ github.event.inputs.test_mode || 'false' }}
+        run: |
+          echo "Running agent..."
+          python agent.py
 
       - name: Upload logs on failure
         if: failure()
