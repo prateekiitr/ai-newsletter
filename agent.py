@@ -54,7 +54,7 @@ ADMIN_TOKEN     = os.environ['ADMIN_TOKEN']
 SUBSCRIBERS_URL = os.environ.get('SUBSCRIBERS_URL', 'https://prateeksinghphd.in/api/subscribers')
 FROM_EMAIL      = os.environ.get('FROM_EMAIL', 'newsletter@prateeksinghphd.in')
 FROM_NAME       = os.environ.get('FROM_NAME', 'Dr. Prateek Singh')
-MODEL           = 'llama-3.1-70b-versatile'  # Hermes-3 on Groq — change if available
+MODEL           = 'llama3-70b-8192'  # Groq — stable, supports json_object
 MAX_ITEMS       = 6   # max news items to pass to the LLM
 TEST_MODE       = os.environ.get('TEST_MODE', 'false').lower() == 'true'
 TEST_EMAIL      = os.environ.get('TEST_EMAIL', 'prateek29singh@gmail.com')
@@ -304,35 +304,64 @@ Here are today's top AI news items — write the newsletter digest:
 
 Return only the JSON object. No markdown. No explanation."""
 
-    log.info("Calling Groq API (Hermes-3)...")
+    log.info("Calling Groq API...")
 
     headers = {
         'Authorization': f'Bearer {GROQ_API_KEY}',
         'Content-Type': 'application/json'
     }
-    payload = {
-        'model': MODEL,
-        'messages': [
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user',   'content': user_prompt}
-        ],
-        'temperature': 0.7,
-        'max_tokens': 1200,
-        'response_format': {'type': 'json_object'}
-    }
 
-    r = requests.post(
-        'https://api.groq.com/openai/v1/chat/completions',
-        headers=headers,
-        json=payload,
-        timeout=30
-    )
-    r.raise_for_status()
+    # Try primary model first, fall back to mixtral if it fails
+    models_to_try = [
+        ('llama3-70b-8192',          True),   # (model_name, supports_json_mode)
+        ('llama-3.3-70b-versatile',  True),
+        ('mixtral-8x7b-32768',       False),  # mixtral doesn't support json_object
+    ]
 
-    content = r.json()['choices'][0]['message']['content']
-    digest  = json.loads(content)
-    log.info(f"Digest written. Subject: {digest.get('subject', 'N/A')}")
-    return digest
+    last_error = None
+    for model_name, supports_json in models_to_try:
+        try:
+            payload = {
+                'model': model_name,
+                'messages': [
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user',   'content': user_prompt}
+                ],
+                'temperature': 0.7,
+                'max_tokens': 1200,
+            }
+            if supports_json:
+                payload['response_format'] = {'type': 'json_object'}
+
+            log.info(f"  Trying model: {model_name}")
+            r = requests.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            r.raise_for_status()
+
+            content = r.json()['choices'][0]['message']['content']
+
+            # Robust JSON extraction — strip markdown fences if present
+            content = content.strip()
+            if content.startswith('```'):
+                content = content.split('```')[1]
+                if content.startswith('json'):
+                    content = content[4:]
+            content = content.strip()
+
+            digest = json.loads(content)
+            log.info(f"Digest written with {model_name}. Subject: {digest.get('subject', 'N/A')}")
+            return digest
+
+        except Exception as e:
+            log.warning(f"  Model {model_name} failed: {e}")
+            last_error = e
+            continue
+
+    raise RuntimeError(f"All Groq models failed. Last error: {last_error}")
 
 
 # ══════════════════════════════════════════════════════════════════
