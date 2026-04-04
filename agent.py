@@ -376,16 +376,44 @@ def fetch_subscribers() -> list[str]:
 
     log.info("Fetching subscribers from Cloudflare...")
     try:
+        # If token already in URL (e.g. ?token=xxx), use as-is
+        # Otherwise append it
+        if 'token=' in SUBSCRIBERS_URL or 'Authorization' in SUBSCRIBERS_URL:
+            url = SUBSCRIBERS_URL
+        else:
+            url = f"{SUBSCRIBERS_URL}?token={ADMIN_TOKEN}"
+
+        log.info(f"Fetching from: {url.split('?')[0]}...")  # log URL without token
+
         r = requests.get(
-            SUBSCRIBERS_URL,
+            url,
             headers={'Authorization': f'Bearer {ADMIN_TOKEN}'},
             timeout=15
         )
+
+        log.info(f"Subscriber API status: {r.status_code}")
         r.raise_for_status()
         data = r.json()
-        emails = [s['email'] for s in data.get('subscribers', []) if s.get('active', True)]
-        log.info(f"Found {len(emails)} active subscribers")
+
+        log.info(f"API response keys: {list(data.keys())}")
+        log.info(f"Total in response: {data.get('count', 'N/A')}")
+
+        all_subs = data.get('subscribers', [])
+        log.info(f"Raw records: {len(all_subs)}")
+
+        for s in all_subs[:3]:
+            log.info(f"  Sample: email={s.get('email')} active={s.get('active')}")
+
+        emails = [
+            s['email'] for s in all_subs
+            if s.get('active', True) is not False
+            and s.get('email')
+        ]
+
+        log.info(f"Active subscribers to send: {len(emails)}")
+        log.info(f"Email list: {emails}")
         return emails
+
     except Exception as e:
         log.error(f"Failed to fetch subscribers: {e}")
         raise
