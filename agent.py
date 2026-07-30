@@ -383,8 +383,8 @@ Return only the JSON object. No markdown. No explanation."""
     }
 
     models_to_try = [
-        ('llama3-70b-8192',          True),
         ('llama-3.3-70b-versatile',  True),
+        ('openai/gpt-oss-120b',      True),
     ]
 
     last_error = None
@@ -701,6 +701,16 @@ def build_email_html(digest: dict, date_str: str, email: str, blogs: list = None
     <p style="font-size:13px;color:#4a4a6a;margin:10px 0 0;font-family:monospace;">— Dr. Prateek Singh</p></td></tr></table>
   </div>
   {blogs_section_html}
+  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;background:#0c0c18;">
+    <div style="display:inline-block;background:#10b98114;border:1px solid #10b98130;border-radius:3px;padding:4px 12px;margin-bottom:18px;">
+      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#10b981;text-transform:uppercase;font-weight:700;">💰 New Tool</span>
+    </div>
+    <h2 style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#f0f0f8;margin:0 0 12px;line-height:1.3;">
+      <a href="https://prateeksinghphd.in/finance-app-generic/" style="color:#f0f0f8;text-decoration:none;">Finance Ledger — Interactive Dashboard</a>
+    </h2>
+    <p style="font-size:17px;color:#b0b0c8;line-height:1.8;margin:0 0 22px;">Break down your CTC, track loans and investments, and see your real net worth — free, no signup. Everything you enter stays in your own browser, nothing is sent anywhere.</p>
+    <a href="https://prateeksinghphd.in/finance-app-generic/" style="display:inline-block;background:#10b98118;color:#10b981;border:1px solid #10b98140;font-family:monospace;font-size:12px;letter-spacing:2px;font-weight:700;text-transform:uppercase;text-decoration:none;padding:12px 24px;border-radius:3px;">Open Dashboard →</a>
+  </div>
   <div style="padding:32px 44px;background:#0d0d1a;border-bottom:1px solid #1e1e35;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:middle;">
       <p style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#f0f0f8;margin:0 0 4px;">Building with LLMs or AI Agents?</p>
