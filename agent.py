@@ -45,7 +45,6 @@ ADMIN_TOKEN     = os.environ['ADMIN_TOKEN']
 SUBSCRIBERS_URL = os.environ.get('SUBSCRIBERS_URL', 'https://prateeksinghphd.in/api/subscribers')
 FROM_EMAIL      = os.environ.get('FROM_EMAIL', 'hello@prateeksinghphd.in')
 FROM_NAME       = os.environ.get('FROM_NAME', 'Dr. Prateek Singh')
-MODEL           = 'llama3-70b-8192'
 MAX_ITEMS       = 8
 TEST_MODE       = os.environ.get('TEST_MODE', 'false').lower() == 'true'
 TEST_EMAIL      = os.environ.get('TEST_EMAIL', 'prateek29singh@gmail.com')
@@ -383,8 +382,8 @@ Return only the JSON object. No markdown. No explanation."""
     }
 
     models_to_try = [
-        ('llama-3.3-70b-versatile',  True),
         ('openai/gpt-oss-120b',      True),
+        ('openai/gpt-oss-20b',       True),
     ]
 
     last_error = None
