@@ -460,6 +460,8 @@ Return only the JSON object. No markdown. No explanation."""
                 json=payload,
                 timeout=30
             )
+            if not r.ok:
+                log.warning(f"  Groq {r.status_code} body: {r.text[:500]}")
             r.raise_for_status()
             content = r.json()['choices'][0]['message']['content'].strip()
             if content.startswith('```'):
