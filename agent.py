@@ -91,6 +91,11 @@ SOURCES = [
     {'name': 'VentureBeat AI', 'url': 'https://venturebeat.com/category/ai/feed/', 'type': 'rss', 'priority': 1, 'category': 'news'},
     {'name': 'The Verge AI', 'url': 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', 'type': 'rss', 'priority': 1, 'category': 'news'},
 
+    # News — "what's trending" approximation for X/LinkedIn (no official free API for either;
+    # these aggregators surface the same stories once they go viral on social)
+    {'name': 'Techmeme', 'url': 'https://www.techmeme.com/feed.xml', 'type': 'rss', 'priority': 1, 'category': 'news'},
+    {'name': 'Google News — AI', 'url': 'https://news.google.com/rss/search?q=artificial%20intelligence%20when:2d&hl=en-US&gl=US&ceid=US:en', 'type': 'rss', 'priority': 1, 'category': 'news'},
+
     # News — dynamic sources for daily variety
     {'name': 'GitHub Trending (AI/LLM)', 'type': 'github_trending', 'priority': 2, 'category': 'news'},
     {'name': 'Reddit r/LocalLLaMA', 'type': 'reddit', 'subreddit': 'LocalLLaMA', 'priority': 2, 'category': 'news'},
@@ -365,7 +370,10 @@ Staff Engineer/Manager on the Compute AI team at Qualcomm.
 IIT Roorkee PhD. Expert in LLM deployment, on-device AI, quantization,
 AI agents, and edge inference.
 
-You are given two candidate pools already fetched from RSS/HN/Reddit/GitHub/arXiv/HuggingFace.
+You are given two candidate pools already fetched from RSS/HN/Reddit/GitHub/arXiv/HuggingFace/
+Techmeme/Google News (Techmeme and Google News track stories once they go viral on X/Twitter and
+LinkedIn, so treat items from them as a proxy for "what's trending on social" even though we don't
+hit those platforms directly).
 Your job is not just to summarize them — it's to CURATE. Most candidates will be routine,
 repetitive, or low-signal. Skip anything that is hype, a rehash, a minor point release, or a
 low-effort post — even if it matches AI keywords.
@@ -500,7 +508,7 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
         news_html += f"""
         <div style="padding:22px 0;{border_top}">
           <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;">
-            <span style="font-family:Georgia,serif;font-size:22px;font-weight:900;
+            <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:22px;font-weight:900;
                          color:#00d9b4;opacity:.35;line-height:1.2;">0{i+1}</span>
             <a href="{n.get('url','#')}"
                style="font-size:19px;font-weight:700;color:#f0f0f8;
@@ -525,7 +533,7 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
         <div style="margin-bottom:20px;background:#0d0d1a;border:1px solid #1e1e35;
                     border-left:3px solid {color};border-radius:6px;padding:20px 24px;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-            <span style="font-family:Georgia,serif;font-size:28px;font-weight:900;
+            <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:28px;font-weight:900;
                          color:{color};opacity:.35;line-height:1;">0{i+1}</span>
             <a href="{p.get('url','#')}"
                style="font-size:17px;font-weight:700;color:#f0f0f8;
@@ -563,12 +571,12 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
   </div>
   <div style="padding:40px 44px 32px;border-bottom:1px solid #1e1e35;">
     <table width="100%" cellpadding="0" cellspacing="0">
-      <tr><td><p style="font-family:Georgia,serif;font-size:13px;font-style:italic;color:#00d9b4;margin:0 0 6px;">Dr. Prateek Singh</p>
-          <h1 style="font-family:Georgia,serif;font-size:36px;font-weight:900;color:#f0f0f8;margin:0;line-height:1.1;letter-spacing:-0.5px;">Your AI Briefing</h1>
+      <tr><td><p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-style:italic;color:#00d9b4;margin:0 0 6px;">Dr. Prateek Singh</p>
+          <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:36px;font-weight:900;color:#f0f0f8;margin:0;line-height:1.1;letter-spacing:-0.5px;">Your AI Briefing</h1>
           <p style="font-size:15px;color:#5a5a7a;margin:8px 0 0;font-family:monospace;">{date_str}</p></td>
         <td style="text-align:right;vertical-align:top;padding-top:4px;"><div style="background:#0d0d1a;border:1px solid #1e1e35;border-radius:6px;padding:10px 16px;display:inline-block;">
           <p style="font-family:monospace;font-size:10px;letter-spacing:2px;color:#5a5a7a;text-transform:uppercase;margin:0 0 3px;">Today</p>
-          <p style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#00d9b4;margin:0;line-height:1;">5 min</p>
+          <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:22px;font-weight:900;color:#00d9b4;margin:0;line-height:1;">5 min</p>
           <p style="font-family:monospace;font-size:9px;color:#3a3a5a;margin:2px 0 0;text-transform:uppercase;">read</p>
         </div></td></tr>
     </table>
@@ -587,12 +595,12 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
   </div>
   <div style="padding:30px 44px;border-bottom:1px solid #1e1e35;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="width:4px;background:linear-gradient(180deg,#00d9b4,#7c6bff);border-radius:2px;">&nbsp;</td>
-    <td style="padding-left:20px;"><p style="font-family:Georgia,serif;font-size:17px;font-style:italic;color:#8a8aaa;line-height:1.75;margin:0;">"{closing}"</p>
+    <td style="padding-left:20px;"><p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:17px;font-style:italic;color:#8a8aaa;line-height:1.75;margin:0;">"{closing}"</p>
     <p style="font-size:13px;color:#4a4a6a;margin:10px 0 0;font-family:monospace;">— Dr. Prateek Singh</p></td></tr></table>
   </div>
   <div style="padding:32px 44px;background:#0d0d1a;border-bottom:1px solid #1e1e35;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:middle;">
-      <p style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#f0f0f8;margin:0 0 4px;">Building with LLMs or AI Agents?</p>
+      <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:18px;font-weight:700;color:#f0f0f8;margin:0 0 4px;">Building with LLMs or AI Agents?</p>
       <p style="font-size:14px;color:#6a6a8a;margin:0;">Let's discuss your project — free 30-min call.</p></td>
     <td style="text-align:right;vertical-align:middle;"><a href="https://cal.com/prateek-singh-la8jpj" style="display:inline-block;background:#00d9b4;color:#08080f;font-family:monospace;font-size:11px;letter-spacing:2px;font-weight:700;text-transform:uppercase;text-decoration:none;padding:12px 20px;border-radius:3px;white-space:nowrap;">Book a Call →</a></td></tr></table>
   </div>
