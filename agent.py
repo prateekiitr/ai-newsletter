@@ -506,7 +506,7 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
 
     news_html = ''
     for i, n in enumerate(digest.get('news', [])[:MAX_NEWS_FINAL]):
-        border_top = 'border-top:1px solid #1e1e35;' if i > 0 else ''
+        border_top = 'border-top:1px solid #33333f;' if i > 0 else ''
         news_html += f"""
         <div style="padding:22px 0;{border_top}">
           <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;">
@@ -532,7 +532,7 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
     for i, p in enumerate(digest.get('papers', [])[:MAX_PAPERS_FINAL]):
         color = paper_colors[i % len(paper_colors)]
         papers_html += f"""
-        <div style="margin-bottom:20px;background:#0d0d1a;border:1px solid #1e1e35;
+        <div style="margin-bottom:20px;background:#232330;border:1px solid #33333f;
                     border-left:3px solid {color};border-radius:6px;padding:20px 24px;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
             <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:28px;font-weight:900;
@@ -564,43 +564,43 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark"><title>{subject}</title></head>
-<body style="margin:0;padding:0;background:#08080f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
-<div style="max-width:620px;margin:0 auto;background:#08080f;">
+<body style="margin:0;padding:0;background:#1a1a22;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<div style="max-width:700px;margin:0 auto;background:#1a1a22;">
   <div style="background:#00d9b4;padding:10px 40px;text-align:center;">
     <span style="font-family:monospace;font-size:11px;font-weight:700;letter-spacing:3px;color:#08080f;text-transform:uppercase;">
       🧠 AI DAILY BRIEFING &nbsp;·&nbsp; {dow} &nbsp;·&nbsp; 9 AM IST
     </span>
   </div>
-  <div style="padding:40px 44px 32px;border-bottom:1px solid #1e1e35;">
+  <div style="padding:40px 44px 32px;border-bottom:1px solid #33333f;">
     <table width="100%" cellpadding="0" cellspacing="0">
       <tr><td><p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;font-style:italic;color:#00d9b4;margin:0 0 6px;">Dr. Prateek Singh</p>
           <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:36px;font-weight:900;color:#f0f0f8;margin:0;line-height:1.1;letter-spacing:-0.5px;">Your AI Briefing</h1>
           <p style="font-size:15px;color:#5a5a7a;margin:8px 0 0;font-family:monospace;">{date_str}</p></td>
-        <td style="text-align:right;vertical-align:top;padding-top:4px;"><div style="background:#0d0d1a;border:1px solid #1e1e35;border-radius:6px;padding:10px 16px;display:inline-block;">
+        <td style="text-align:right;vertical-align:top;padding-top:4px;"><div style="background:#232330;border:1px solid #33333f;border-radius:6px;padding:10px 16px;display:inline-block;">
           <p style="font-family:monospace;font-size:10px;letter-spacing:2px;color:#5a5a7a;text-transform:uppercase;margin:0 0 3px;">Today</p>
           <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:22px;font-weight:900;color:#00d9b4;margin:0;line-height:1;">5 min</p>
           <p style="font-family:monospace;font-size:9px;color:#3a3a5a;margin:2px 0 0;text-transform:uppercase;">read</p>
         </div></td></tr>
     </table>
   </div>
-  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;">
+  <div style="padding:36px 44px;border-bottom:1px solid #33333f;">
     <div style="display:inline-block;background:#00d9b414;border:1px solid #00d9b430;border-radius:3px;padding:4px 12px;margin-bottom:8px;">
       <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#00d9b4;text-transform:uppercase;font-weight:700;">📰 Genuinely Interesting AI News</span>
     </div>
     {news_html}
   </div>
-  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;background:#0c0c18;">
+  <div style="padding:36px 44px;border-bottom:1px solid #33333f;background:#20202a;">
     <div style="display:inline-block;background:#7c6bff14;border:1px solid #7c6bff30;border-radius:3px;padding:4px 12px;margin-bottom:22px;">
       <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#7c6bff;text-transform:uppercase;font-weight:700;">📄 New Papers Worth Reading</span>
     </div>
     {papers_html}
   </div>
-  <div style="padding:30px 44px;border-bottom:1px solid #1e1e35;">
+  <div style="padding:30px 44px;border-bottom:1px solid #33333f;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="width:4px;background:linear-gradient(180deg,#00d9b4,#7c6bff);border-radius:2px;">&nbsp;</td>
     <td style="padding-left:20px;"><p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:17px;font-style:italic;color:#8a8aaa;line-height:1.75;margin:0;">"{closing}"</p>
     <p style="font-size:13px;color:#4a4a6a;margin:10px 0 0;font-family:monospace;">— Dr. Prateek Singh</p></td></tr></table>
   </div>
-  <div style="padding:32px 44px;background:#0d0d1a;border-bottom:1px solid #1e1e35;">
+  <div style="padding:32px 44px;background:#232330;border-bottom:1px solid #33333f;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:middle;">
       <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:18px;font-weight:700;color:#f0f0f8;margin:0 0 4px;">Building with LLMs or AI Agents?</p>
       <p style="font-size:14px;color:#6a6a8a;margin:0;">Let's discuss your project — free 30-min call.</p></td>
@@ -610,8 +610,8 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr><td>
       <p style="font-family:monospace;font-size:10px;letter-spacing:2px;color:#00d9b4;text-transform:uppercase;margin:0 0 8px;">Dr. Prateek Singh</p>
       <p style="font-size:13px;color:#4a4a6a;line-height:1.8;margin:0;">Staff Engineer/Manager, Compute AI<br>Qualcomm · IIT Roorkee PhD</p></td>
-    <td style="text-align:right;vertical-align:middle;"><a href="https://prateeksinghphd.in" style="display:inline-block;background:#0d0d1a;color:#00d9b4;border:1px solid #1e1e35;font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;padding:8px 14px;border-radius:3px;">My Blog →</a></td></tr></table>
-    <div style="border-top:1px solid #1e1e35;padding-top:20px;">
+    <td style="text-align:right;vertical-align:middle;"><a href="https://prateeksinghphd.in" style="display:inline-block;background:#232330;color:#00d9b4;border:1px solid #33333f;font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;padding:8px 14px;border-radius:3px;">My Blog →</a></td></tr></table>
+    <div style="border-top:1px solid #33333f;padding-top:20px;">
       <a href="https://prateeksinghphd.in" style="font-size:13px;color:#4a4a6a;text-decoration:none;margin-right:16px;">🌐 Website</a>
       <a href="https://www.linkedin.com/in/prateek29s/" style="font-size:13px;color:#4a4a6a;text-decoration:none;margin-right:16px;">💼 LinkedIn</a>
       <a href="https://scholar.google.com/citations?user=nYZhJaMAAAAJ&hl=en" style="font-size:13px;color:#4a4a6a;text-decoration:none;margin-right:16px;">📚 Scholar</a>
