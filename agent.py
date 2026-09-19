@@ -401,8 +401,13 @@ OUTPUT FORMAT — return valid JSON only, no markdown, no explanation:
   "closing_thought": "1 short sentence — an honest observation or provocative question about today's AI landscape. No positivity fluff."
 }}
 
-Pick between 3 and {MAX_NEWS_FINAL} "news" items and between 3 and {MAX_PAPERS_FINAL} "papers" items —
-fewer is fine if the pool is weak, but never invent items or urls not present in the candidates below."""
+You MUST return at least 3 "news" items and at least 3 "papers" items every time (up to
+{MAX_NEWS_FINAL} news and {MAX_PAPERS_FINAL} papers) — the email layout has dedicated sections for
+both and an empty or near-empty section looks broken. The paper pool is pre-filtered to arXiv/
+HuggingFace research, so it will always have at least 3 legitimate candidates; do not return fewer
+just because none of them feel like "big" news — pick the most relevant/interesting ones you do
+have. Only go below 3 in a section if that candidate list above is truly shorter than 3 items.
+Never invent items or urls not present in the candidates below."""
 
     user_prompt = f"""Date: {date_str}
 
