@@ -358,7 +358,7 @@ def llm_curate_digest(news_candidates: list[dict], paper_candidates: list[dict],
     and write the digest from the ones it picks."""
     def fmt(items):
         return '\n\n'.join([
-            f"[{i+1}] SOURCE: {item['source']}\nTITLE: {item['title']}\nSUMMARY: {item['summary']}\nURL: {item['url']}"
+            f"[{i+1}] SOURCE: {item['source']}\nTITLE: {item['title']}\nSUMMARY: {item['summary'][:220]}\nURL: {item['url']}"
             for i, item in enumerate(items)
         ])
 
@@ -448,7 +448,7 @@ Return only the JSON object. No markdown. No explanation."""
                     {'role': 'user',   'content': user_prompt}
                 ],
                 'temperature': 0.7,
-                'max_tokens': 1800,
+                'max_tokens': 3000,
             }
             if supports_json:
                 payload['response_format'] = {'type': 'json_object'}
