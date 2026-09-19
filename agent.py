@@ -1,18 +1,15 @@
 """
 ╔══════════════════════════════════════════════════════════════════╗
-║  Daily AI Newsletter Agent (Refactored for Freshness)           ║
+║  Daily AI Newsletter Agent — News + Papers                      ║
 ║  Dr. Prateek Singh · prateeksinghphd.in                         ║
 ║                                                                  ║
-║  Changes:                                                        ║
-║  - Health AI NOT blocked (user request)                         ║
-║  - Added GitHub Trending, Reddit for daily variety              ║
-║  - Dedup with 14-day expiry (different news every day)          ║
-║  - Diversity filter: max 2 items per source                     ║
-║  - Recency bonus in scoring                                     ║
-║  - Recommended run time: 6 PM IST (captures full day's news)    ║
+║  Two sections only: genuinely interesting AI news, and new      ║
+║  papers worth reading. Candidates are fetched + keyword/recency ║
+║  scored as before, then an LLM pass curates down to the items   ║
+║  that are actually significant (not just keyword matches).      ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-ENV variables (same as before):
+ENV variables:
     GROQ_API_KEY, RESEND_API_KEY, ADMIN_TOKEN, SUBSCRIBERS_URL,
     FROM_EMAIL, FROM_NAME, TEST_MODE, TEST_EMAIL
 """
@@ -45,7 +42,6 @@ ADMIN_TOKEN     = os.environ['ADMIN_TOKEN']
 SUBSCRIBERS_URL = os.environ.get('SUBSCRIBERS_URL', 'https://prateeksinghphd.in/api/subscribers')
 FROM_EMAIL      = os.environ.get('FROM_EMAIL', 'hello@prateeksinghphd.in')
 FROM_NAME       = os.environ.get('FROM_NAME', 'Dr. Prateek Singh')
-MAX_ITEMS       = 8
 TEST_MODE       = os.environ.get('TEST_MODE', 'false').lower() == 'true'
 TEST_EMAIL      = os.environ.get('TEST_EMAIL', 'prateek29singh@gmail.com')
 
@@ -70,26 +66,34 @@ HIGH_PRIORITY_KEYWORDS = [
 ]
 
 # ── SOURCES (only high‑churn, daily‑changing feeds)
+# category 'paper' = research papers section, 'news' = genuine AI news section
 SOURCES = [
-    # Primary research & labs
-    {'name': 'ArXiv cs.CL', 'url': 'https://rss.arxiv.org/rss/cs.CL', 'type': 'rss', 'priority': 1},
-    {'name': 'ArXiv cs.AI', 'url': 'https://rss.arxiv.org/rss/cs.AI', 'type': 'rss', 'priority': 1},
-    {'name': 'HuggingFace Daily Papers', 'type': 'hf_papers', 'priority': 1},
-    {'name': 'OpenAI Blog', 'url': 'https://openai.com/blog/rss.xml', 'type': 'rss', 'priority': 1},
-    {'name': 'Anthropic News', 'url': 'https://www.anthropic.com/rss.xml', 'type': 'rss', 'priority': 1},
-    {'name': 'Google DeepMind Blog', 'url': 'https://deepmind.google/blog/rss.xml', 'type': 'rss', 'priority': 1},
-    {'name': 'Meta AI Blog', 'url': 'https://ai.meta.com/blog/rss/', 'type': 'rss', 'priority': 2},
-    {'name': 'Mistral AI Blog', 'url': 'https://mistral.ai/feed', 'type': 'rss', 'priority': 2},
-    
-    # Dynamic sources for daily variety
-    {'name': 'GitHub Trending (AI/LLM)', 'type': 'github_trending', 'priority': 2},
-    {'name': 'Reddit r/LocalLLaMA', 'type': 'reddit', 'subreddit': 'LocalLLaMA', 'priority': 2},
-    {'name': 'Reddit r/MachineLearning', 'type': 'reddit', 'subreddit': 'MachineLearning', 'priority': 3},
-    
-    # Hacker News (two queries for breadth)
-    {'name': 'Hacker News — LLM', 'url': 'https://hn.algolia.com/api/v1/search?tags=story&query=LLM+language+model&hitsPerPage=6&numericFilters=created_at_i>{}', 'type': 'hn_api', 'priority': 2},
-    {'name': 'Hacker News — AI Agents', 'url': 'https://hn.algolia.com/api/v1/search?tags=story&query=AI+agent+Claude+OpenAI&hitsPerPage=6&numericFilters=created_at_i>{}', 'type': 'hn_api', 'priority': 2},
+    # Papers
+    {'name': 'ArXiv cs.CL', 'url': 'https://rss.arxiv.org/rss/cs.CL', 'type': 'rss', 'priority': 1, 'category': 'paper'},
+    {'name': 'ArXiv cs.AI', 'url': 'https://rss.arxiv.org/rss/cs.AI', 'type': 'rss', 'priority': 1, 'category': 'paper'},
+    {'name': 'HuggingFace Daily Papers', 'type': 'hf_papers', 'priority': 1, 'category': 'paper'},
+
+    # News — primary labs
+    {'name': 'OpenAI Blog', 'url': 'https://openai.com/blog/rss.xml', 'type': 'rss', 'priority': 1, 'category': 'news'},
+    {'name': 'Anthropic News', 'url': 'https://www.anthropic.com/rss.xml', 'type': 'rss', 'priority': 1, 'category': 'news'},
+    {'name': 'Google DeepMind Blog', 'url': 'https://deepmind.google/blog/rss.xml', 'type': 'rss', 'priority': 1, 'category': 'news'},
+    {'name': 'Meta AI Blog', 'url': 'https://ai.meta.com/blog/rss/', 'type': 'rss', 'priority': 2, 'category': 'news'},
+    {'name': 'Mistral AI Blog', 'url': 'https://mistral.ai/feed', 'type': 'rss', 'priority': 2, 'category': 'news'},
+
+    # News — dynamic sources for daily variety
+    {'name': 'GitHub Trending (AI/LLM)', 'type': 'github_trending', 'priority': 2, 'category': 'news'},
+    {'name': 'Reddit r/LocalLLaMA', 'type': 'reddit', 'subreddit': 'LocalLLaMA', 'priority': 2, 'category': 'news'},
+    {'name': 'Reddit r/MachineLearning', 'type': 'reddit', 'subreddit': 'MachineLearning', 'priority': 3, 'category': 'news'},
+
+    # News — Hacker News (two queries for breadth)
+    {'name': 'Hacker News — LLM', 'url': 'https://hn.algolia.com/api/v1/search?tags=story&query=LLM+language+model&hitsPerPage=6&numericFilters=created_at_i>{}', 'type': 'hn_api', 'priority': 2, 'category': 'news'},
+    {'name': 'Hacker News — AI Agents', 'url': 'https://hn.algolia.com/api/v1/search?tags=story&query=AI+agent+Claude+OpenAI&hitsPerPage=6&numericFilters=created_at_i>{}', 'type': 'hn_api', 'priority': 2, 'category': 'news'},
 ]
+
+MAX_NEWS_CANDIDATES = 20   # sent to LLM for curation
+MAX_PAPER_CANDIDATES = 15  # sent to LLM for curation
+MAX_NEWS_FINAL = 5         # picked by LLM for the email
+MAX_PAPERS_FINAL = 4       # picked by LLM for the email
 
 # ============================================================================
 # DEDUPLICATION WITH EXPIRY
@@ -133,6 +137,7 @@ def fetch_rss(source: dict) -> list[dict]:
                 'url':      entry.get('link', ''),
                 'source':   source['name'],
                 'priority': source['priority'],
+                'category': source['category'],
                 'days_old': days_old
             })
         log.info(f"  {source['name']}: {len(items)} items")
@@ -154,6 +159,7 @@ def fetch_hf_papers(source: dict) -> list[dict]:
                 'url':      f"https://huggingface.co/papers/{paper.get('id', '')}",
                 'source':   'HuggingFace Papers',
                 'priority': source['priority'],
+                'category': source['category'],
                 'days_old': 0  # fresh daily
             })
         log.info(f"  HuggingFace Papers: {len(items)} items")
@@ -176,6 +182,7 @@ def fetch_hn(source: dict) -> list[dict]:
                 'url':      hit.get('url') or f"https://news.ycombinator.com/item?id={hit.get('objectID')}",
                 'source':   source['name'],
                 'priority': source['priority'],
+                'category': source['category'],
                 'days_old': 0
             })
         log.info(f"  {source['name']}: {len(items)} items")
@@ -201,6 +208,7 @@ def fetch_github_trending(source: dict) -> list[dict]:
                 'url': repo.get('url', '#'),
                 'source': 'GitHub Trending (AI/LLM)',
                 'priority': source['priority'],
+                'category': source['category'],
                 'days_old': 0
             })
         log.info(f"  GitHub Trending: {len(items)} items")
@@ -225,6 +233,7 @@ def fetch_reddit(source: dict) -> list[dict]:
                 'url': f"https://reddit.com{p['permalink']}",
                 'source': f"Reddit r/{subreddit}",
                 'priority': source['priority'],
+                'category': source['category'],
                 'days_old': 0
             })
         log.info(f"  Reddit r/{subreddit}: {len(items)} items")
@@ -256,8 +265,21 @@ def score_item(item: dict) -> float:
 # FETCH ALL NEWS (with dedup, expiry, diversity)
 # ============================================================================
 
-def fetch_all_news() -> list[dict]:
-    log.info("Fetching news from all sources...")
+def _diversify(items: list[dict], max_per_source: int, cap: int) -> list[dict]:
+    source_count = {}
+    out = []
+    for item in items:
+        src = item['source']
+        if source_count.get(src, 0) < max_per_source:
+            out.append(item)
+            source_count[src] = source_count.get(src, 0) + 1
+        if len(out) >= cap:
+            break
+    return out
+
+def fetch_all() -> tuple[list[dict], list[dict]]:
+    """Fetch every source and split scored, deduped candidates into (news, papers)."""
+    log.info("Fetching news and papers from all sources...")
     all_items = []
 
     for source in SOURCES:
@@ -290,49 +312,47 @@ def fetch_all_news() -> list[dict]:
         if h in seen:
             log.debug(f"Skipping seen: {item['title'][:60]}")
             continue
-        # Mark as seen now (will be saved at end)
-        seen[h] = now
+        seen[h] = now  # mark as seen now (persisted at end)
         unique_items.append(item)
 
-    # Diversity: max 2 items from same source
-    source_count = {}
-    diverse_items = []
-    for item in unique_items:
-        src = item['source']
-        if source_count.get(src, 0) < 2:
-            diverse_items.append(item)
-            source_count[src] = source_count.get(src, 0) + 1
-        if len(diverse_items) >= MAX_ITEMS:
-            break
+    news_pool = [i for i in unique_items if i['category'] == 'news']
+    paper_pool = [i for i in unique_items if i['category'] == 'paper']
 
-    top = diverse_items[:MAX_ITEMS]
+    news_candidates = _diversify(news_pool, max_per_source=3, cap=MAX_NEWS_CANDIDATES)
+    paper_candidates = _diversify(paper_pool, max_per_source=8, cap=MAX_PAPER_CANDIDATES)
 
-    # Persist seen titles (auto-expiry on next run)
     save_seen_titles(seen)
 
-    log.info(f"Selected {len(top)} fresh items after scoring, dedup, and diversity")
-    return top
+    log.info(f"Candidates for LLM curation: {len(news_candidates)} news, {len(paper_candidates)} papers")
+    return news_candidates, paper_candidates
 
 # ============================================================================
-# (Everything below this line is unchanged from original)
-# - write_digest_with_llm
-# - fetch_my_blogs
-# - fetch_subscribers
-# - build_email_html
-# - send_newsletter
-# - main
+# LLM curation, subscriber fetch, email rendering/sending, main
 # ============================================================================
 
-def write_digest_with_llm(news_items: list[dict], date_str: str) -> dict:
-    news_text = '\n\n'.join([
-        f"[{i+1}] SOURCE: {item['source']}\nTITLE: {item['title']}\nSUMMARY: {item['summary']}\nURL: {item['url']}"
-        for i, item in enumerate(news_items)
-    ])
+def llm_curate_digest(news_candidates: list[dict], paper_candidates: list[dict], date_str: str) -> dict:
+    """Ask the LLM to judge which candidates are genuinely interesting — not just keyword hits —
+    and write the digest from the ones it picks."""
+    def fmt(items):
+        return '\n\n'.join([
+            f"[{i+1}] SOURCE: {item['source']}\nTITLE: {item['title']}\nSUMMARY: {item['summary']}\nURL: {item['url']}"
+            for i, item in enumerate(items)
+        ])
 
-    system_prompt = """You are writing a daily AI newsletter for Dr. Prateek Singh,
-Senior Manager of GenAI at Samsung Research Institute, Noida.
+    news_text = fmt(news_candidates)
+    papers_text = fmt(paper_candidates)
+
+    system_prompt = f"""You are curating and writing a daily AI newsletter for Dr. Prateek Singh,
+Staff Engineer/Manager on the Compute AI team at Qualcomm.
 IIT Roorkee PhD. Expert in LLM deployment, on-device AI, quantization,
 AI agents, and edge inference.
+
+You are given two candidate pools already fetched from RSS/HN/Reddit/GitHub/arXiv/HuggingFace.
+Your job is not just to summarize them — it's to CURATE. Most candidates will be routine,
+repetitive, or low-signal. Only pick items that are genuinely interesting: real model releases,
+meaningful benchmarks, notable research findings, significant funding/product news, or tools that
+change how practitioners work. Skip anything that is hype, a rehash, a minor point release, or a
+low-effort post — even if it matches AI keywords.
 
 VOICE: Confident, clear, slightly technical but accessible. Not hype-y.
 Write like a senior engineer who has seen a lot of AI trends come and go.
@@ -342,36 +362,27 @@ FOCUS: LLMs, AI agents, model releases, inference optimization, open-source AI,
 on-device AI, quantization, agent frameworks, reasoning models.
 
 OUTPUT FORMAT — return valid JSON only, no markdown, no explanation:
-{
+{{
   "subject": "email subject line (max 70 chars, include date and 1-2 key topics)",
-  "top_story": {
-    "headline": "one punchy line",
-    "body": "2-3 sentences explaining why it matters. Plain English.",
-    "url": "url from the news items"
-  },
-  "llm_spotlight": {
-    "headline": "one punchy line about a new model, agent framework, or inference breakthrough",
-    "body": "2-3 sentences — what changed, what it means for practitioners",
-    "url": "url"
-  },
-  "papers": [
-    {"title": "short title", "summary": "one sentence — what it does and why it matters", "url": "url"},
-    {"title": "short title", "summary": "one sentence", "url": "url"},
-    {"title": "short title", "summary": "one sentence", "url": "url"}
+  "news": [
+    {{"headline": "one punchy line", "body": "2-3 sentences on what happened and why it matters", "url": "url from the news candidates"}}
   ],
-  "tools_repos": {
-    "headline": "tool or repo name",
-    "body": "1-2 sentences on what it does and why it matters for LLM/agent practitioners",
-    "url": "url"
-  },
+  "papers": [
+    {{"title": "short title", "summary": "one sentence — what it does and why it matters", "url": "url from the paper candidates"}}
+  ],
   "closing_thought": "1 short sentence — an honest observation or provocative question about today's AI landscape. No positivity fluff."
-}"""
+}}
+
+Pick between 3 and {MAX_NEWS_FINAL} "news" items and between 3 and {MAX_PAPERS_FINAL} "papers" items —
+fewer is fine if the pool is weak, but never invent items or urls not present in the candidates below."""
 
     user_prompt = f"""Date: {date_str}
 
-Here are today's top AI/LLM news items — write the newsletter digest:
-
+NEWS CANDIDATES:
 {news_text}
+
+PAPER CANDIDATES:
+{papers_text}
 
 Return only the JSON object. No markdown. No explanation."""
 
@@ -396,7 +407,7 @@ Return only the JSON object. No markdown. No explanation."""
                     {'role': 'user',   'content': user_prompt}
                 ],
                 'temperature': 0.7,
-                'max_tokens': 1200,
+                'max_tokens': 1800,
             }
             if supports_json:
                 payload['response_format'] = {'type': 'json_object'}
@@ -416,7 +427,8 @@ Return only the JSON object. No markdown. No explanation."""
                     content = content[4:]
             content = content.strip()
             digest = json.loads(content)
-            log.info(f"Digest written with {model_name}. Subject: {digest.get('subject', 'N/A')}")
+            log.info(f"Digest curated with {model_name}. Subject: {digest.get('subject', 'N/A')} "
+                     f"({len(digest.get('news', []))} news, {len(digest.get('papers', []))} papers)")
             return digest
         except Exception as e:
             log.warning(f"  Model {model_name} failed: {e}")
@@ -424,102 +436,6 @@ Return only the JSON object. No markdown. No explanation."""
             continue
 
     raise RuntimeError(f"All Groq models failed. Last error: {last_error}")
-
-def fetch_my_blogs(max_posts: int = 3) -> list[dict]:
-    try:
-        from html.parser import HTMLParser
-        r = requests.get('https://prateeksinghphd.in/blogs.html', timeout=10)
-        r.raise_for_status()
-        html = r.text
-
-        class BlogParser(HTMLParser):
-            def __init__(self):
-                super().__init__()
-                self.posts = []
-                self.in_card = False
-                self.in_title = False
-                self.in_date = False
-                self.in_excerpt = False
-                self.current = {}
-                self.depth = 0
-                self.card_depth = 0
-
-            def handle_starttag(self, tag, attrs):
-                attrs_dict = dict(attrs)
-                cls = attrs_dict.get('class', '')
-                self.depth += 1
-                if tag in ('a', 'div') and any(x in cls for x in ['post-card', 'blog-card', 'blog-post']):
-                    self.in_card = True
-                    self.card_depth = self.depth
-                    self.current = {
-                        'url': attrs_dict.get('href', '#'),
-                        'title': '', 'date': '', 'excerpt': ''
-                    }
-                    if not self.current['url'].startswith('http'):
-                        self.current['url'] = 'https://prateeksinghphd.in/' + self.current['url'].lstrip('/')
-                if self.in_card:
-                    if any(x in cls for x in ['post-title', 'blog-card-title']):
-                        self.in_title = True
-                    if any(x in cls for x in ['post-date', 'blog-card-date']):
-                        self.in_date = True
-                    if any(x in cls for x in ['post-excerpt', 'blog-card-excerpt']):
-                        self.in_excerpt = True
-
-            def handle_endtag(self, tag):
-                self.depth -= 1
-                if self.in_card and self.depth < self.card_depth:
-                    if self.current.get('title'):
-                        self.posts.append(self.current.copy())
-                    self.in_card = False
-                    self.current = {}
-                self.in_title = False
-                self.in_date = False
-                self.in_excerpt = False
-
-            def handle_data(self, data):
-                data = data.strip()
-                if not data or not self.in_card:
-                    return
-                if self.in_title and not self.current.get('title'):
-                    self.current['title'] = data
-                elif self.in_date and not self.current.get('date'):
-                    self.current['date'] = data
-                elif self.in_excerpt and not self.current.get('excerpt'):
-                    self.current['excerpt'] = data
-
-        parser = BlogParser()
-        parser.feed(html)
-        posts = parser.posts[:max_posts]
-        if not posts:
-            log.warning("Blog parser got no results — using fallback list")
-            posts = _blog_fallback()
-        log.info(f"Fetched {len(posts)} blog posts")
-        return posts
-    except Exception as e:
-        log.warning(f"Blog fetch failed: {e} — using fallback")
-        return _blog_fallback()
-
-def _blog_fallback() -> list[dict]:
-    return [
-        {
-            'title': 'The Agent Wars: OpenClaw, NemoClaw & Hermes',
-            'date': 'Apr 04, 2026',
-            'excerpt': 'OpenClaw became the OS for personal AI. NemoClaw made it enterprise-safe. Hermes made it evolve.',
-            'url': 'https://prateeksinghphd.in/agentic.html'
-        },
-        {
-            'title': 'TurboQuant',
-            'date': 'Mar 29, 2026',
-            'excerpt': 'Google solved the KV cache bottleneck — 6× compression, 8× speedup, zero accuracy loss.',
-            'url': 'https://prateeksinghphd.in/turboquant.html'
-        },
-        {
-            'title': 'Quantization in LLMs',
-            'date': 'Mar 21, 2026',
-            'excerpt': 'Making 70B models fit in 24 GB without making them dumber — GPTQ, AWQ, NF4 and beyond.',
-            'url': 'https://prateeksinghphd.in/quantization-llms.html'
-        },
-    ]
 
 def fetch_subscribers() -> list[str]:
     if TEST_MODE:
@@ -542,11 +458,35 @@ def fetch_subscribers() -> list[str]:
         log.error(f"Failed to fetch subscribers: {e}")
         raise
 
-def build_email_html(digest: dict, date_str: str, email: str, blogs: list = None) -> str:
+def build_email_html(digest: dict, date_str: str, email: str) -> str:
     unsubscribe_url = f"https://prateeksinghphd.in/api/unsubscribe?email={requests.utils.quote(email)}"
-    paper_colors = ['#00d9b4', '#7c6bff', '#ff6b9d']
+
+    news_html = ''
+    for i, n in enumerate(digest.get('news', [])[:MAX_NEWS_FINAL]):
+        border_top = 'border-top:1px solid #1e1e35;' if i > 0 else ''
+        news_html += f"""
+        <div style="padding:22px 0;{border_top}">
+          <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;">
+            <span style="font-family:Georgia,serif;font-size:22px;font-weight:900;
+                         color:#00d9b4;opacity:.35;line-height:1.2;">0{i+1}</span>
+            <a href="{n.get('url','#')}"
+               style="font-size:19px;font-weight:700;color:#f0f0f8;
+                      text-decoration:none;line-height:1.3;">{n.get('headline','')}</a>
+          </div>
+          <p style="color:#b0b0c8;font-size:16px;line-height:1.75;margin:0 0 10px;
+                    padding-left:34px;">{n.get('body','')}</p>
+          <div style="padding-left:34px;">
+            <a href="{n.get('url','#')}"
+               style="font-family:monospace;font-size:11px;letter-spacing:2px;
+                      color:#00d9b4;text-transform:uppercase;text-decoration:none;">
+              Read →
+            </a>
+          </div>
+        </div>"""
+
+    paper_colors = ['#7c6bff', '#ff6b9d', '#00d9b4', '#ffb347']
     papers_html = ''
-    for i, p in enumerate(digest.get('papers', [])[:3]):
+    for i, p in enumerate(digest.get('papers', [])[:MAX_PAPERS_FINAL]):
         color = paper_colors[i % len(paper_colors)]
         papers_html += f"""
         <div style="margin-bottom:20px;background:#0d0d1a;border:1px solid #1e1e35;
@@ -570,67 +510,9 @@ def build_email_html(digest: dict, date_str: str, email: str, blogs: list = None
             </a>
           </div>
         </div>"""
-    top = digest.get('top_story', {})
-    llm = digest.get('llm_spotlight', {})
-    tools = digest.get('tools_repos', {})
+
     closing = digest.get('closing_thought', '')
     subject = digest.get('subject', f'AI Daily — {date_str}')
-    blogs = blogs or []
-    blog_rows_html = ''
-    for i, b in enumerate(blogs[:3]):
-        border_top = 'border-top:1px solid #1e1e35;' if i > 0 else ''
-        blog_rows_html += f"""
-        <div style="padding:16px 0;{border_top}display:flex;gap:16px;align-items:flex-start;">
-          <div style="background:#00d9b414;border:1px solid #00d9b430;border-radius:4px;
-                      padding:6px 10px;flex-shrink:0;text-align:center;min-width:44px;">
-            <span style="font-family:Georgia,serif;font-size:18px;font-weight:900;
-                         color:#00d9b4;line-height:1;">✍️</span>
-          </div>
-          <div style="flex:1;">
-            <a href="{b.get('url','https://prateeksinghphd.in/blogs.html')}"
-               style="font-size:16px;font-weight:700;color:#f0f0f8;
-                      text-decoration:none;line-height:1.3;display:block;margin-bottom:5px;">
-              {b.get('title','')}
-            </a>
-            <p style="font-size:13px;color:#6a6a8a;margin:0 0 8px;font-family:monospace;">
-              {b.get('date','')}
-            </p>
-            <p style="font-size:14px;color:#9090b8;margin:0 0 10px;line-height:1.6;">
-              {b.get('excerpt','')}
-            </p>
-            <a href="{b.get('url','https://prateeksinghphd.in/blogs.html')}"
-               style="font-family:monospace;font-size:11px;letter-spacing:2px;
-                      color:#00d9b4;text-transform:uppercase;text-decoration:none;">
-              Read →
-            </a>
-          </div>
-        </div>"""
-    blogs_section_html = ''
-    if blog_rows_html:
-        blogs_section_html = f"""
-  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;background:#0a0a14;">
-    <div style="display:inline-block;background:#00d9b414;border:1px solid #00d9b430;
-                border-radius:3px;padding:4px 12px;margin-bottom:20px;">
-      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;
-                   color:#00d9b4;text-transform:uppercase;font-weight:700;">
-        ✍️ From My Blog
-      </span>
-    </div>
-    <p style="font-size:14px;color:#5a5a7a;margin:0 0 20px;">
-      Recent posts from <a href="https://prateeksinghphd.in/blogs.html"
-      style="color:#00d9b4;text-decoration:none;">prateeksinghphd.in</a>
-    </p>
-    {blog_rows_html}
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid #1e1e35;">
-      <a href="https://prateeksinghphd.in/blogs.html"
-         style="display:inline-block;background:#00d9b414;color:#00d9b4;
-                border:1px solid #00d9b430;font-family:monospace;font-size:11px;
-                letter-spacing:2px;font-weight:700;text-transform:uppercase;
-                text-decoration:none;padding:10px 20px;border-radius:3px;">
-        View All Blogs →
-      </a>
-    </div>
-  </div>"""
     try:
         dow = datetime.now().strftime('%A').upper()
     except Exception:
@@ -643,7 +525,7 @@ def build_email_html(digest: dict, date_str: str, email: str, blogs: list = None
 <div style="max-width:620px;margin:0 auto;background:#08080f;">
   <div style="background:#00d9b4;padding:10px 40px;text-align:center;">
     <span style="font-family:monospace;font-size:11px;font-weight:700;letter-spacing:3px;color:#08080f;text-transform:uppercase;">
-      🧠 AI DAILY BRIEFING &nbsp;·&nbsp; {dow} &nbsp;·&nbsp; 6 PM IST
+      🧠 AI DAILY BRIEFING &nbsp;·&nbsp; {dow} &nbsp;·&nbsp; 9 AM IST
     </span>
   </div>
   <div style="padding:40px 44px 32px;border-bottom:1px solid #1e1e35;">
@@ -659,56 +541,21 @@ def build_email_html(digest: dict, date_str: str, email: str, blogs: list = None
     </table>
   </div>
   <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;">
-    <div style="display:inline-block;background:#00d9b414;border:1px solid #00d9b430;border-radius:3px;padding:4px 12px;margin-bottom:18px;">
-      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#00d9b4;text-transform:uppercase;font-weight:700;">① Top Story</span>
+    <div style="display:inline-block;background:#00d9b414;border:1px solid #00d9b430;border-radius:3px;padding:4px 12px;margin-bottom:8px;">
+      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#00d9b4;text-transform:uppercase;font-weight:700;">📰 Genuinely Interesting AI News</span>
     </div>
-    <h2 style="font-family:Georgia,serif;font-size:26px;font-weight:900;color:#f0f0f8;margin:0 0 14px;line-height:1.25;">
-      <a href="{top.get('url','#')}" style="color:#f0f0f8;text-decoration:none;">{top.get('headline','')}</a>
-    </h2>
-    <p style="font-size:17px;color:#b0b0c8;line-height:1.8;margin:0 0 22px;">{top.get('body','')}</p>
-    <a href="{top.get('url','#')}" style="display:inline-block;background:#00d9b4;color:#08080f;font-family:monospace;font-size:12px;letter-spacing:2px;font-weight:700;text-transform:uppercase;text-decoration:none;padding:12px 24px;border-radius:3px;">Read Full Story →</a>
+    {news_html}
   </div>
   <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;background:#0c0c18;">
-    <div style="display:inline-block;background:#7c6bff14;border:1px solid #7c6bff30;border-radius:3px;padding:4px 12px;margin-bottom:18px;">
-      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#7c6bff;text-transform:uppercase;font-weight:700;">🤖 LLM &amp; Agents Spotlight</span>
-    </div>
-    <h2 style="font-family:Georgia,serif;font-size:24px;font-weight:900;color:#f0f0f8;margin:0 0 14px;line-height:1.3;">
-      <a href="{llm.get('url','#')}" style="color:#f0f0f8;text-decoration:none;">{llm.get('headline','')}</a>
-    </h2>
-    <p style="font-size:17px;color:#b0b0c8;line-height:1.8;margin:0 0 22px;">{llm.get('body','')}</p>
-    <a href="{llm.get('url','#')}" style="display:inline-block;background:#7c6bff18;color:#7c6bff;border:1px solid #7c6bff40;font-family:monospace;font-size:12px;letter-spacing:2px;font-weight:700;text-transform:uppercase;text-decoration:none;padding:12px 24px;border-radius:3px;">Dig Deeper →</a>
-  </div>
-  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;">
     <div style="display:inline-block;background:#7c6bff14;border:1px solid #7c6bff30;border-radius:3px;padding:4px 12px;margin-bottom:22px;">
-      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#7c6bff;text-transform:uppercase;font-weight:700;">📄 3 Papers Worth Reading</span>
+      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#7c6bff;text-transform:uppercase;font-weight:700;">📄 New Papers Worth Reading</span>
     </div>
     {papers_html}
-  </div>
-  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;background:#0c0c18;">
-    <div style="display:inline-block;background:#ffb34714;border:1px solid #ffb34730;border-radius:3px;padding:4px 12px;margin-bottom:18px;">
-      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#ffb347;text-transform:uppercase;font-weight:700;">🚀 Tool / Repo of the Day</span>
-    </div>
-    <h2 style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#f0f0f8;margin:0 0 12px;line-height:1.3;">
-      <a href="{tools.get('url','#')}" style="color:#f0f0f8;text-decoration:none;">{tools.get('headline','')}</a>
-    </h2>
-    <p style="font-size:17px;color:#b0b0c8;line-height:1.8;margin:0 0 22px;">{tools.get('body','')}</p>
-    <a href="{tools.get('url','#')}" style="display:inline-block;background:#ffb34718;color:#ffb347;border:1px solid #ffb34740;font-family:monospace;font-size:12px;letter-spacing:2px;font-weight:700;text-transform:uppercase;text-decoration:none;padding:12px 24px;border-radius:3px;">Check it out →</a>
   </div>
   <div style="padding:30px 44px;border-bottom:1px solid #1e1e35;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="width:4px;background:linear-gradient(180deg,#00d9b4,#7c6bff);border-radius:2px;">&nbsp;</td>
     <td style="padding-left:20px;"><p style="font-family:Georgia,serif;font-size:17px;font-style:italic;color:#8a8aaa;line-height:1.75;margin:0;">"{closing}"</p>
     <p style="font-size:13px;color:#4a4a6a;margin:10px 0 0;font-family:monospace;">— Dr. Prateek Singh</p></td></tr></table>
-  </div>
-  {blogs_section_html}
-  <div style="padding:36px 44px;border-bottom:1px solid #1e1e35;background:#0c0c18;">
-    <div style="display:inline-block;background:#10b98114;border:1px solid #10b98130;border-radius:3px;padding:4px 12px;margin-bottom:18px;">
-      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#10b981;text-transform:uppercase;font-weight:700;">💰 New Tool</span>
-    </div>
-    <h2 style="font-family:Georgia,serif;font-size:22px;font-weight:900;color:#f0f0f8;margin:0 0 12px;line-height:1.3;">
-      <a href="https://prateeksinghphd.in/finance-app-generic/" style="color:#f0f0f8;text-decoration:none;">Finance Ledger — Interactive Dashboard</a>
-    </h2>
-    <p style="font-size:17px;color:#b0b0c8;line-height:1.8;margin:0 0 22px;">Break down your CTC, track loans and investments, and see your real net worth — free, no signup. Everything you enter stays in your own browser, nothing is sent anywhere.</p>
-    <a href="https://prateeksinghphd.in/finance-app-generic/" style="display:inline-block;background:#10b98118;color:#10b981;border:1px solid #10b98140;font-family:monospace;font-size:12px;letter-spacing:2px;font-weight:700;text-transform:uppercase;text-decoration:none;padding:12px 24px;border-radius:3px;">Open Dashboard →</a>
   </div>
   <div style="padding:32px 44px;background:#0d0d1a;border-bottom:1px solid #1e1e35;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:middle;">
@@ -719,7 +566,7 @@ def build_email_html(digest: dict, date_str: str, email: str, blogs: list = None
   <div style="padding:32px 44px;">
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr><td>
       <p style="font-family:monospace;font-size:10px;letter-spacing:2px;color:#00d9b4;text-transform:uppercase;margin:0 0 8px;">Dr. Prateek Singh</p>
-      <p style="font-size:13px;color:#4a4a6a;line-height:1.8;margin:0;">Senior Manager, GenAI &amp; Digital Health AI<br>Samsung Research Institute, Noida · IIT Roorkee PhD</p></td>
+      <p style="font-size:13px;color:#4a4a6a;line-height:1.8;margin:0;">Staff Engineer/Manager, Compute AI<br>Qualcomm · IIT Roorkee PhD</p></td>
     <td style="text-align:right;vertical-align:middle;"><a href="https://prateeksinghphd.in" style="display:inline-block;background:#0d0d1a;color:#00d9b4;border:1px solid #1e1e35;font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;padding:8px 14px;border-radius:3px;">My Blog →</a></td></tr></table>
     <div style="border-top:1px solid #1e1e35;padding-top:20px;">
       <a href="https://prateeksinghphd.in" style="font-size:13px;color:#4a4a6a;text-decoration:none;margin-right:16px;">🌐 Website</a>
@@ -733,12 +580,12 @@ def build_email_html(digest: dict, date_str: str, email: str, blogs: list = None
 </body>
 </html>"""
 
-def send_newsletter(emails: list[str], digest: dict, date_str: str, blogs: list = None) -> dict:
+def send_newsletter(emails: list[str], digest: dict, date_str: str) -> dict:
     results = {'sent': 0, 'failed': 0, 'errors': []}
     log.info(f"Sending to {len(emails)} subscribers...")
     for i, email in enumerate(emails):
         try:
-            html = build_email_html(digest, date_str, email, blogs=blogs)
+            html = build_email_html(digest, date_str, email)
             subject = digest.get('subject', f'🧠 AI Daily — {date_str}')
             r = requests.post(
                 'https://api.resend.com/emails',
@@ -767,23 +614,24 @@ def main():
     log.info(f"Daily AI Newsletter Agent — {date_str}")
     if TEST_MODE:
         log.info("⚠️  TEST MODE — emails only sent to TEST_EMAIL")
-    log.info("Recommended schedule: 6 PM IST (12:30 UTC) to capture full day's news")
     log.info(f"{'='*60}")
 
-    news_items = fetch_all_news()
-    if not news_items:
-        log.error("No news items fetched — aborting")
+    news_candidates, paper_candidates = fetch_all()
+    if not news_candidates and not paper_candidates:
+        log.error("No candidates fetched — aborting")
         return
 
-    my_blogs = fetch_my_blogs(max_posts=3)
-    digest = write_digest_with_llm(news_items, date_str)
-    emails = fetch_subscribers()
+    digest = llm_curate_digest(news_candidates, paper_candidates, date_str)
+    if not digest.get('news') and not digest.get('papers'):
+        log.error("LLM curated zero items — aborting")
+        return
 
+    emails = fetch_subscribers()
     if not emails:
         log.error("No subscribers found — aborting")
         return
 
-    results = send_newsletter(emails, digest, date_str, blogs=my_blogs)
+    results = send_newsletter(emails, digest, date_str)
 
     log.info(f"{'='*60}")
     log.info(f"✅ Sent:   {results['sent']}")
