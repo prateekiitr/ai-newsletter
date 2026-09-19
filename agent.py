@@ -568,7 +568,7 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
 <div style="max-width:700px;margin:0 auto;background:#1a1a22;">
   <div style="background:#00d9b4;padding:10px 40px;text-align:center;">
     <span style="font-family:monospace;font-size:11px;font-weight:700;letter-spacing:3px;color:#08080f;text-transform:uppercase;">
-      🧠 AI DAILY BRIEFING &nbsp;·&nbsp; {dow} &nbsp;·&nbsp; 9 AM IST
+      🧠 AI DAILY BRIEFING &nbsp;·&nbsp; {dow}
     </span>
   </div>
   <div style="padding:40px 44px 32px;border-bottom:1px solid #33333f;">
@@ -585,7 +585,7 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
   </div>
   <div style="padding:36px 44px;border-bottom:1px solid #33333f;">
     <div style="display:inline-block;background:#00d9b414;border:1px solid #00d9b430;border-radius:3px;padding:4px 12px;margin-bottom:8px;">
-      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#00d9b4;text-transform:uppercase;font-weight:700;">📰 Genuinely Interesting AI News</span>
+      <span style="font-family:monospace;font-size:10px;letter-spacing:3px;color:#00d9b4;text-transform:uppercase;font-weight:700;">📰 Interesting AI News</span>
     </div>
     {news_html}
   </div>
@@ -603,7 +603,7 @@ def build_email_html(digest: dict, date_str: str, email: str) -> str:
   <div style="padding:32px 44px;background:#232330;border-bottom:1px solid #33333f;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr><td style="vertical-align:middle;">
       <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:18px;font-weight:700;color:#f0f0f8;margin:0 0 4px;">Building with LLMs or AI Agents?</p>
-      <p style="font-size:14px;color:#6a6a8a;margin:0;">Let's discuss your project — free 30-min call.</p></td>
+      <p style="font-size:14px;color:#6a6a8a;margin:0;">Let's discuss your project — free 15-min call.</p></td>
     <td style="text-align:right;vertical-align:middle;"><a href="https://cal.com/prateek-singh-la8jpj" style="display:inline-block;background:#00d9b4;color:#08080f;font-family:monospace;font-size:11px;letter-spacing:2px;font-weight:700;text-transform:uppercase;text-decoration:none;padding:12px 20px;border-radius:3px;white-space:nowrap;">Book a Call →</a></td></tr></table>
   </div>
   <div style="padding:32px 44px;">
