@@ -21,7 +21,7 @@ import logging
 import hashlib
 import requests
 import feedparser
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from dotenv import load_dotenv
 
@@ -62,7 +62,13 @@ HIGH_PRIORITY_KEYWORDS = [
     'mamba', 'ssm', 'mixture of experts', 'moe', 'kv cache',
     'vllm', 'tensorrt', 'triton', 'speculative decoding', 'flash attention',
     # News‑specific triggers
-    'release', 'announce', 'launch', 'new model', 'updated'
+    'release', 'announce', 'launch', 'new model', 'updated',
+    # Industry drama / buzz triggers (funding, rivalry, controversy — not just technical releases)
+    'lawsuit', 'sues', 'sued', 'fired', 'resigns', 'resignation', 'steps down',
+    'raises', 'funding round', 'valuation', 'acquire', 'acquisition', 'ipo',
+    'backlash', 'controversy', 'security breach', 'hacked', 'leaked', 'banned',
+    'fine', 'regulation', 'antitrust', 'feud', 'rivalry', 'poach', 'departs',
+    'ceo', 'billion', 'safety concern', 'whistleblower'
 ]
 
 # ── SOURCES (only high‑churn, daily‑changing feeds)
@@ -73,21 +79,27 @@ SOURCES = [
     {'name': 'ArXiv cs.AI', 'url': 'https://rss.arxiv.org/rss/cs.AI', 'type': 'rss', 'priority': 1, 'category': 'paper'},
     {'name': 'HuggingFace Daily Papers', 'type': 'hf_papers', 'priority': 1, 'category': 'paper'},
 
-    # News — primary labs
+    # News — primary labs (official releases, tends dry/technical)
     {'name': 'OpenAI Blog', 'url': 'https://openai.com/blog/rss.xml', 'type': 'rss', 'priority': 1, 'category': 'news'},
     {'name': 'Anthropic News', 'url': 'https://www.anthropic.com/rss.xml', 'type': 'rss', 'priority': 1, 'category': 'news'},
     {'name': 'Google DeepMind Blog', 'url': 'https://deepmind.google/blog/rss.xml', 'type': 'rss', 'priority': 1, 'category': 'news'},
     {'name': 'Meta AI Blog', 'url': 'https://ai.meta.com/blog/rss/', 'type': 'rss', 'priority': 2, 'category': 'news'},
     {'name': 'Mistral AI Blog', 'url': 'https://mistral.ai/feed', 'type': 'rss', 'priority': 2, 'category': 'news'},
 
+    # News — industry press (funding, rivalry, controversy, drama — the "interesting" stuff)
+    {'name': 'TechCrunch AI', 'url': 'https://techcrunch.com/category/artificial-intelligence/feed/', 'type': 'rss', 'priority': 1, 'category': 'news'},
+    {'name': 'VentureBeat AI', 'url': 'https://venturebeat.com/category/ai/feed/', 'type': 'rss', 'priority': 1, 'category': 'news'},
+    {'name': 'The Verge AI', 'url': 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', 'type': 'rss', 'priority': 1, 'category': 'news'},
+
     # News — dynamic sources for daily variety
     {'name': 'GitHub Trending (AI/LLM)', 'type': 'github_trending', 'priority': 2, 'category': 'news'},
     {'name': 'Reddit r/LocalLLaMA', 'type': 'reddit', 'subreddit': 'LocalLLaMA', 'priority': 2, 'category': 'news'},
     {'name': 'Reddit r/MachineLearning', 'type': 'reddit', 'subreddit': 'MachineLearning', 'priority': 3, 'category': 'news'},
 
-    # News — Hacker News (two queries for breadth)
+    # News — Hacker News (technical query + a broad one to catch drama/funding/viral stories)
     {'name': 'Hacker News — LLM', 'url': 'https://hn.algolia.com/api/v1/search?tags=story&query=LLM+language+model&hitsPerPage=6&numericFilters=created_at_i>{}', 'type': 'hn_api', 'priority': 2, 'category': 'news'},
     {'name': 'Hacker News — AI Agents', 'url': 'https://hn.algolia.com/api/v1/search?tags=story&query=AI+agent+Claude+OpenAI&hitsPerPage=6&numericFilters=created_at_i>{}', 'type': 'hn_api', 'priority': 2, 'category': 'news'},
+    {'name': 'Hacker News — AI Buzz', 'url': 'https://hn.algolia.com/api/v1/search?tags=story&query=OpenAI+Anthropic+AI&hitsPerPage=10&numericFilters=created_at_i>{},points>30', 'type': 'hn_api', 'priority': 1, 'category': 'news'},
 ]
 
 MAX_NEWS_CANDIDATES = 20   # sent to LLM for curation
@@ -192,20 +204,26 @@ def fetch_hn(source: dict) -> list[dict]:
         return []
 
 def fetch_github_trending(source: dict) -> list[dict]:
-    """Fetch trending AI/LLM repos from GitHub (daily)."""
+    """Fetch recently-popular AI/LLM repos via the official GitHub Search API
+    (avoids relying on unofficial trending mirrors, which go down often)."""
     try:
-        # Using a free, reliable mirror for GitHub trending
-        url = "https://gtrend.yapie.me/repositories?since=daily&language=python"
-        r = requests.get(url, timeout=10)
+        since = (datetime.now(timezone.utc) - timedelta(days=7)).strftime('%Y-%m-%d')
+        url = (
+            "https://api.github.com/search/repositories"
+            f"?q=topic:llm+created:>{since}&sort=stars&order=desc&per_page=8"
+        )
+        headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'AI-Newsletter/1.0'}
+        r = requests.get(url, headers=headers, timeout=10)
+        r.raise_for_status()
         data = r.json()
         items = []
-        for repo in data[:8]:
-            name = repo.get('name', '')
+        for repo in data.get('items', [])[:8]:
+            name = repo.get('full_name', '')
             description = repo.get('description', '') or "No description"
             items.append({
-                'title': f"⭐ {repo.get('stars', 0)} stars · {name}",
+                'title': f"⭐ {repo.get('stargazers_count', 0)} stars · {name}",
                 'summary': description[:400],
-                'url': repo.get('url', '#'),
+                'url': repo.get('html_url', '#'),
                 'source': 'GitHub Trending (AI/LLM)',
                 'priority': source['priority'],
                 'category': source['category'],
@@ -349,16 +367,26 @@ AI agents, and edge inference.
 
 You are given two candidate pools already fetched from RSS/HN/Reddit/GitHub/arXiv/HuggingFace.
 Your job is not just to summarize them — it's to CURATE. Most candidates will be routine,
-repetitive, or low-signal. Only pick items that are genuinely interesting: real model releases,
-meaningful benchmarks, notable research findings, significant funding/product news, or tools that
-change how practitioners work. Skip anything that is hype, a rehash, a minor point release, or a
+repetitive, or low-signal. Skip anything that is hype, a rehash, a minor point release, or a
 low-effort post — even if it matches AI keywords.
+
+The reader finds pure "Model X released, here are the benchmarks" posts boring even when they're
+technically significant. For the "news" section, actively prefer items that are genuinely
+INTERESTING, not just technically important. That means favoring, when available:
+  - Industry drama: lawsuits, executive departures/hires, public feuds, whistleblowers, leaks
+  - Competitive moves: one lab undercutting/copying/reacting to another, rivalry, poaching
+  - Money: funding rounds, valuations, acquisitions, layoffs
+  - Controversy: safety incidents, security breaches, backlash, bans, regulation fights
+  - Odd/funny/unexpected happenings in the AI world — the stuff people actually talk about
+A big model release is worth including only if it's genuinely notable (a new frontier model, a
+surprising capability, a real shift) — not every routine update. If the news pool this run is all
+dry lab-blog announcements, say so plainly in the closing thought rather than padding with filler.
 
 VOICE: Confident, clear, slightly technical but accessible. Not hype-y.
 Write like a senior engineer who has seen a lot of AI trends come and go.
 Short sentences. No fluff. Respect the reader's time.
 
-FOCUS: LLMs, AI agents, model releases, inference optimization, open-source AI,
+FOCUS for papers only: LLMs, AI agents, model releases, inference optimization, open-source AI,
 on-device AI, quantization, agent frameworks, reasoning models.
 
 OUTPUT FORMAT — return valid JSON only, no markdown, no explanation:
